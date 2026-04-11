@@ -1,0 +1,13 @@
+# Binaries
+api
+worker
+
+# Environment files
+.env
+
+# Go
+*.exe
+*.out
+
+# Mac
+.DS_Store
