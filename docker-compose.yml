@@ -52,7 +52,7 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  worker:
+  consumer:
     build:
       context: .
       dockerfile: worker/Dockerfile

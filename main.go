@@ -35,8 +35,10 @@ func main() {
 
 	r.Use(RateLimiter(h.redis))
 
-	r.POST("/shorten", h.shortenURL)
+	r.POST("/shorten", JWTMiddleware(), h.shortenURL)
 	r.GET("/:code", h.redirectURL)
+	r.POST("/register", h.register)
+	r.POST("/login", h.login)
 
 	r.Run(":8080")
 }
@@ -51,6 +53,9 @@ func randomCode(n int) string {
 }
 
 func (h *Handler) shortenURL(c *gin.Context) {
+
+	userId, _ := c.Get("userId")
+	fmt.Println("Request from user:", userId)
 
 	var req struct {
 		URL string `json:"url"`
@@ -110,5 +115,81 @@ func (h *Handler) redirectURL(c *gin.Context) {
 	Publish(code)
 
 	c.Redirect(http.StatusFound, originalURL)
+
+}
+
+func (h *Handler) register(c *gin.Context) {
+
+	var req struct {
+		Email string `json:"email"`
+		Pwd   string `json:"password"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid JSON",
+		})
+		return
+	}
+
+	hashPassword, err := HashPassword(req.Pwd)
+
+	if err != nil {
+		fmt.Println("error while hashing password", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
+		return
+	}
+
+	err = CreateUser(h.db, req.Email, hashPassword)
+
+	if err != nil {
+		fmt.Println("insert error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "user created"})
+
+}
+
+func (h *Handler) login(c *gin.Context) {
+
+	var req struct {
+		Email string `json:"email"`
+		Pwd   string `json:"password"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid JSON",
+		})
+		return
+	}
+
+	id, pwd, err := GetUserByEmail(h.db, req.Email)
+
+	if err != nil {
+		fmt.Println("error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to find user"})
+		return
+	}
+
+	err = CheckPassword(req.Pwd, []byte(pwd))
+
+	if err != nil {
+		fmt.Println("password mismatch", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password do not match"})
+		return
+	}
+
+	tokenString, err := GenerateToken(id)
+
+	if err != nil {
+		fmt.Println(" token creation error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token not created"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": tokenString})
 
 }

@@ -33,7 +33,17 @@ func initDB() *pgxpool.Pool {
 	 `)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create table: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Failed to create urls table: %v\n", err)
+		os.Exit(1)
+	}
+
+	_, err = pool.Exec(ctx,
+		` CREATE TABLE IF NOT EXISTS users (
+		  id SERIAL PRIMARY KEY, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL ) 
+	`)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create users table: %v\n", err)
 		os.Exit(1)
 	}
 

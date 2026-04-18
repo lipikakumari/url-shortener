@@ -53,3 +53,32 @@ func GetURL(db *pgxpool.Pool, code string) (string, error) {
 
 	return originalURL, nil
 }
+
+func CreateUser(db *pgxpool.Pool, email string, hashPassword []byte) error {
+	ctx := context.Background()
+
+	_, err := db.Exec(ctx,
+		"INSERT INTO users (email , password) values ($1 , $2)",
+		email, hashPassword,
+	)
+
+	return err
+}
+
+func GetUserByEmail(db *pgxpool.Pool, email string) (int32, string, error) {
+	ctx := context.Background()
+
+	var id int32
+	var pwd string
+
+	err := db.QueryRow(ctx,
+		"SELECT id , password FROM users WHERE email = $1",
+		email,
+	).Scan(&id, &pwd)
+
+	if err != nil {
+		return 0, "", err
+	}
+
+	return id, pwd, nil
+}
